@@ -25,11 +25,13 @@ jobs:
         shell: bash
         run: |
           mkdir -p lighthouse-results
-          for page in about communities; do
+          for page in about communities login; do
+            url="https://loopnation.app/loopcommunity/info/index?page=$page"
+            if [ "$page" = login ]; then url='https://loopnation.app/user/auth/login'; fi
             for device in mobile desktop; do
               mode='--form-factor=mobile'
               if [ "$device" = desktop ]; then mode='--preset=desktop'; fi
-              npx --yes --package=lighthouse@13.6.0 lighthouse "https://loopnation.app/loopcommunity/info/index?page=$page" $mode --chrome-flags='--headless=new --no-sandbox' --only-categories=performance,accessibility,best-practices,seo --output=json --output=html --output-path="lighthouse-results/$page-$device" --quiet
+              npx --yes --package=lighthouse@13.6.0 lighthouse "$url" $mode --chrome-flags='--headless=new --no-sandbox' --only-categories=performance,accessibility,best-practices,seo --output=json --output=html --output-path="lighthouse-results/$page-$device" --quiet
             done
           done
       - name: Check performance budgets
@@ -40,4 +42,3 @@ jobs:
           name: public-page-lighthouse
           path: lighthouse-results
           retention-days: 28
-

@@ -5,7 +5,11 @@ let failed=false;
 for(const path of paths){
  const report=JSON.parse(readFileSync(path,'utf8'));
  if(report.runtimeError){console.error(path,report.runtimeError.code);failed=true;continue;}
- for(const [name,min] of Object.entries({performance:.9,accessibility:.95,'best-practices':.95,seo:.95})){
+ let login=false;
+ try{const requested=new URL(report.requestedUrl),final=new URL(report.finalDisplayedUrl??report.finalUrl);login=requested.origin==='https://loopnation.app'&&requested.pathname==='/user/auth/login'&&final.origin===requested.origin&&final.pathname===requested.pathname;}catch{console.error(path,'Invalid report URL');failed=true;continue;}
+ const budgets={performance:.9,accessibility:.95,'best-practices':.95,...(login?{}:{seo:.95})};
+ if(login&&!report.audits?.['is-crawlable']?.details?.items?.some(item=>typeof item.source==='string'&&/\bnoindex\b/i.test(item.source))){console.error(path,'Sign-in must remain noindex');failed=true;}
+ for(const [name,min] of Object.entries(budgets)){
   const score=report.categories?.[name]?.score;
   if(typeof score!=='number'||score<min){console.error(`${path}: ${name} ${score} below ${min}`);failed=true;}
  }
@@ -16,4 +20,3 @@ for(const path of paths){
  console.log(`${path}: ${report.configSettings.formFactor}, LCP=${report.audits['largest-contentful-paint'].displayValue}, CLS=${report.audits['cumulative-layout-shift'].displayValue}`);
 }
 process.exitCode=failed?1:0;
-
