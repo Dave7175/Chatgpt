@@ -1,0 +1,43 @@
+name: Public page performance
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '37 8 * * 1'
+  push:
+    paths:
+      - 'themes/LoopNation/**'
+      - 'modules/loopcommunity/components/PublicInfoView.php'
+      - 'modules/loopcommunity/views/info/**'
+      - 'scripts/lighthouse-budget.mjs'
+      - '.github/workflows/performance.yml'
+permissions:
+  contents: read
+jobs:
+  lighthouse:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Audit public guest pages
+        shell: bash
+        run: |
+          mkdir -p lighthouse-results
+          for page in about communities; do
+            for device in mobile desktop; do
+              mode='--form-factor=mobile'
+              if [ "$device" = desktop ]; then mode='--preset=desktop'; fi
+              npx --yes --package=lighthouse@13.6.0 lighthouse "https://loopnation.app/loopcommunity/info/index?page=$page" $mode --chrome-flags='--headless=new --no-sandbox' --only-categories=performance,accessibility,best-practices,seo --output=json --output=html --output-path="lighthouse-results/$page-$device" --quiet
+            done
+          done
+      - name: Check performance budgets
+        run: node scripts/lighthouse-budget.mjs lighthouse-results/*.report.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: public-page-lighthouse
+          path: lighthouse-results
+          retention-days: 28
+
